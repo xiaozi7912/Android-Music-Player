@@ -41,17 +41,19 @@ public class AccountController {
 	public ArrayList<AccountModel> list() {
 		SQLiteDatabase database = SQLManager.getDatabase();
 		ArrayList<AccountModel> resultList = new ArrayList<AccountModel>();
-		String[] columns = { SQLManager.ACCOUNT_ID, SQLManager.ACCOUNT_EMAIL, SQLManager.ACCOUNT_ACCESSTOKEN };
+		String[] columns = { SQLManager.ACCOUNT_ID, SQLManager.ACCOUNT_EMAIL, SQLManager.ACCOUNT_ACCESSTOKEN, SQLManager.ACCOUNT_PICTURE };
 		Cursor cursor = database.query(SQLManager.TABLE_ACCOUNT, columns, null, null, null, null, null);
 		if (cursor.moveToFirst()) {
 			do {
 				AccountModel nAccount = new AccountModel();
-				nAccount.id = cursor.getInt(0);
-				nAccount.email = cursor.getString(1);
-				nAccount.accessToken = cursor.getString(2);
+				nAccount.id = cursor.getInt(cursor.getColumnIndex(SQLManager.ACCOUNT_ID));
+				nAccount.email = cursor.getString(cursor.getColumnIndex(SQLManager.ACCOUNT_EMAIL));
+				nAccount.accessToken = cursor.getString(cursor.getColumnIndex(SQLManager.ACCOUNT_ACCESSTOKEN));
+				nAccount.picture = cursor.getString(cursor.getColumnIndex(SQLManager.ACCOUNT_PICTURE));
 				resultList.add(nAccount);
 			} while (cursor.moveToNext());
 		}
+		cursor.close();
 		database.close();
 		return resultList;
 	}
@@ -59,19 +61,21 @@ public class AccountController {
 	public AccountModel get(String email) {
 		SQLiteDatabase database = SQLManager.getDatabase();
 		AccountModel result = null;
-		String command = "SELECT " + SQLManager.ACCOUNT_ID + "," + SQLManager.ACCOUNT_EMAIL + "," + SQLManager.ACCOUNT_ACCESSTOKEN + " FROM "
-				+ SQLManager.TABLE_ACCOUNT + " WHERE " + SQLManager.ACCOUNT_EMAIL + "='" + email + "';";
-		Cursor cursor = database.rawQuery(command, null);
+		String[] columns = { SQLManager.ACCOUNT_ID, SQLManager.ACCOUNT_EMAIL, SQLManager.ACCOUNT_ACCESSTOKEN, SQLManager.ACCOUNT_PICTURE };
+		String command = String.format("%s='%s'", SQLManager.ACCOUNT_EMAIL, email);
+		Cursor cursor = database.query(SQLManager.TABLE_ACCOUNT, columns, command, null, null, null, null);
 		int resultCount = cursor.getCount();
 
 		if (resultCount != 0) {
 			result = new AccountModel();
 			if (cursor.moveToFirst()) {
-				result.id = cursor.getInt(0);
-				result.email = cursor.getString(1);
-				result.accessToken = cursor.getString(2);
+				result.id = cursor.getInt(cursor.getColumnIndex(SQLManager.ACCOUNT_ID));
+				result.email = cursor.getString(cursor.getColumnIndex(SQLManager.ACCOUNT_EMAIL));
+				result.accessToken = cursor.getString(cursor.getColumnIndex(SQLManager.ACCOUNT_ACCESSTOKEN));
+				result.picture = cursor.getString(cursor.getColumnIndex(SQLManager.ACCOUNT_PICTURE));
 			}
 		}
+		cursor.close();
 		database.close();
 		return result;
 	}

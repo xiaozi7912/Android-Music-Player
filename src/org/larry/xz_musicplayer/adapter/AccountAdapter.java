@@ -5,11 +5,14 @@ import java.util.ArrayList;
 import org.larry.xz_musicplayer.R;
 import org.larry.xz_musicplayer.model.AccountModel;
 
+import com.squareup.picasso.Picasso;
+
 import android.app.Activity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 public class AccountAdapter extends BaseAdapter {
@@ -53,6 +56,7 @@ public class AccountAdapter extends BaseAdapter {
 		} else {
 			convertView = inflater.inflate(R.layout.item_account, null);
 			holder = new ViewHolder();
+			holder.imgPicture = (ImageView) convertView.findViewById(R.id.item_account_picture);
 			holder.textId = (TextView) convertView.findViewById(R.id.item_account_text_id);
 			holder.textEmail = (TextView) convertView.findViewById(R.id.item_account_text_email);
 			holder.textAccesstoken = (TextView) convertView.findViewById(R.id.item_account_text_accesstoken);
@@ -60,6 +64,7 @@ public class AccountAdapter extends BaseAdapter {
 		}
 
 		AccountModel selectedItem = mDataList.get(position);
+		Picasso.with(mActivity).load(selectedItem.picture).into(holder.imgPicture);
 		holder.textId.setText(String.valueOf(selectedItem.id));
 		holder.textEmail.setText(selectedItem.email);
 		holder.textAccesstoken.setText(selectedItem.accessToken);
@@ -67,6 +72,7 @@ public class AccountAdapter extends BaseAdapter {
 	}
 
 	class ViewHolder {
+		ImageView imgPicture = null;
 		TextView textId = null;
 		TextView textEmail = null;
 		TextView textAccesstoken = null;

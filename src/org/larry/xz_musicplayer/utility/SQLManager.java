@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Environment;
 import android.provider.ContactsContract.Directory;
@@ -15,7 +16,6 @@ public class SQLManager {
 	private static final String DB_FOLDER = ".XZMusicPlayer";
 
 	private Context mContext = null;
-	private SQLiteDatabase mDatabase = null;
 
 	public static final String TABLE_ACCOUNT = "ACCOUNT";
 	public static final String ACCOUNT_ID = "_ID";
@@ -25,8 +25,9 @@ public class SQLManager {
 
 	public SQLManager(Context context) {
 		mContext = context;
-		mDatabase = getDatabase();
+
 		createTables();
+		updateDatabase();
 	}
 
 	public static SQLiteDatabase getDatabase() {
@@ -60,18 +61,52 @@ public class SQLManager {
 		return resultFile;
 	}
 
+	private void dropTables() {
+		SQLiteDatabase database = getDatabase();
+		String DROP_TABLE_ACCOUNT = "DROP TABLE IF EXISTS " + TABLE_ACCOUNT;
+
+		database.execSQL(DROP_TABLE_ACCOUNT);
+		database.close();
+	}
+
 	private void createTables() {
+		Log.i(LOG_TAG, "createTables");
+		SQLiteDatabase database = getDatabase();
 		String CREATE_TABLE_ACCOUNT = "CREATE TABLE IF NOT EXISTS " + TABLE_ACCOUNT + " (" + ACCOUNT_ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
 				+ ACCOUNT_EMAIL + " TEXT," + ACCOUNT_ACCESSTOKEN + " TEXT);";
 
-		mDatabase.execSQL(CREATE_TABLE_ACCOUNT);
+		database.execSQL(CREATE_TABLE_ACCOUNT);
+		database.close();
+	}
+
+	private boolean columnExists(String tableName, String columnName) {
+		Log.i(LOG_TAG, "columnExists");
+		SQLiteDatabase database = getDatabase();
+		String command = "SELECT * FROM " + tableName + ";";
+		Cursor cursor = database.rawQuery(command, null);
+		int columnIndex = cursor.getColumnIndex(columnName);
+		boolean result = (columnIndex == -1) ? false : true;
+		cursor.close();
+		database.close();
+		return result;
 	}
 
 	private void updateDatabase() {
+		Log.i(LOG_TAG, "updateDatabase");
 		update0_0_1();
 	}
 
 	private void update0_0_1() {
-		
+		Log.i(LOG_TAG, "update0_0_1");
+		SQLiteDatabase database = getDatabase();
+		String command = null;
+
+		if (!columnExists(TABLE_ACCOUNT, ACCOUNT_PICTURE)) {
+			Log.i(LOG_TAG, "ACCOUNT_PICTURE");
+			command = "ALTER TABLE " + TABLE_ACCOUNT + " ADD COLUMN " + ACCOUNT_PICTURE + " TEXT;";
+			database.execSQL(command);
+		}
+
+		database.close();
 	}
 }
