@@ -3,6 +3,9 @@ package org.larry.xz_musicplayer.fragment;
 import java.io.IOException;
 
 import org.larry.xz_musicplayer.R;
+import org.larry.xz_musicplayer.adapter.AccountAdapter;
+import org.larry.xz_musicplayer.model.AccountModel;
+import org.larry.xz_musicplayer.utility.SQLManager;
 
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.android.gms.auth.GoogleAuthUtil;
@@ -15,6 +18,7 @@ import android.R.integer;
 import android.accounts.AccountManager;
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -38,6 +42,7 @@ public class AccountFragment extends Fragment {
 	private Handler mHandler = new Handler();
 	private String mAccount = null;
 	private String mScopes = "oauth2:https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive";
+	private SQLManager mSqlManager = null;
 
 	private Button mBtnAdd = null;
 	private ListView mListView = null;
@@ -51,6 +56,7 @@ public class AccountFragment extends Fragment {
 		// TODO Auto-generated method stub
 		super.onCreate(savedInstanceState);
 		mActivity = getActivity();
+		mSqlManager = new SQLManager(mActivity);
 	}
 
 	@Override
@@ -61,6 +67,8 @@ public class AccountFragment extends Fragment {
 		mListView = (ListView) rootView.findViewById(R.id.f_account_list);
 
 		mBtnAdd.setOnClickListener(onClickListener);
+
+		updateListView();
 		return rootView;
 	}
 
@@ -79,6 +87,11 @@ public class AccountFragment extends Fragment {
 				&& resultCode == mActivity.RESULT_OK) {
 			getAccesstoken();
 		}
+	}
+
+	private void updateListView() {
+		AccountAdapter adapter = new AccountAdapter(mActivity, mSqlManager.Account().list());
+		mListView.setAdapter(adapter);
 	}
 
 	private void handleException(final Exception e) {
@@ -135,6 +148,16 @@ public class AccountFragment extends Fragment {
 			try {
 				String accessToken = fetchToken();
 				if (accessToken != null) {
+					AccountModel existsAccount = mSqlManager.Account().get(mAccount);
+					ContentValues values = new ContentValues();
+					values.put(SQLManager.ACCOUNT_EMAIL, mAccount);
+					values.put(SQLManager.ACCOUNT_ACCESSTOKEN, accessToken);
+
+					if (existsAccount != null) {
+						mSqlManager.Account().update(existsAccount.id, values);
+					} else {
+						mSqlManager.Account().insert(values);
+					}
 					Log.i(LOG_TAG, "doInBackground");
 					Log.v(LOG_TAG, "accessToken : " + accessToken);
 					Log.i(LOG_TAG, "--------------------------------------------------");
@@ -150,6 +173,7 @@ public class AccountFragment extends Fragment {
 		protected void onPostExecute(Object result) {
 			// TODO Auto-generated method stub
 			super.onPostExecute(result);
+			updateListView();
 		}
 
 		private String fetchToken() throws IOException {
