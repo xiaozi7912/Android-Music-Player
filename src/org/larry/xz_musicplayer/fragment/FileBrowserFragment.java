@@ -3,7 +3,9 @@ package org.larry.xz_musicplayer.fragment;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 import org.apache.http.Header;
 import org.json.JSONArray;
@@ -32,6 +34,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
+import android.view.textservice.TextInfo;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.ListView;
@@ -51,6 +54,9 @@ public class FileBrowserFragment extends Fragment {
 	private TextView mTextPath = null;
 	private ListView mListView = null;
 	private ProgressBar mProgressBar = null;
+	private TextView mTextCurrTime = null;
+	private TextView mTextTitle = null;
+	private TextView mTextDuration = null;
 	private Button mBtnPrev = null;
 	private Button mBtnPlay = null;
 	private Button mBtnNext = null;
@@ -90,9 +96,14 @@ public class FileBrowserFragment extends Fragment {
 		mTextPath = (TextView) rootView.findViewById(R.id.f_browser_text_path);
 		mListView = (ListView) rootView.findViewById(R.id.f_browser_list);
 		mProgressBar = (ProgressBar) rootView.findViewById(R.id.f_browser_progressBar);
+		mTextCurrTime = (TextView) rootView.findViewById(R.id.f_browser_text_currentTime);
+		mTextTitle = (TextView) rootView.findViewById(R.id.f_browser_text_title);
+		mTextDuration = (TextView) rootView.findViewById(R.id.f_browser_text_duration);
 		mBtnPrev = (Button) rootView.findViewById(R.id.f_browser_btn_prev);
 		mBtnPlay = (Button) rootView.findViewById(R.id.f_browser_btn_play);
 		mBtnNext = (Button) rootView.findViewById(R.id.f_browser_btn_next);
+
+		mTextTitle.setText("");
 
 		mListView.setOnItemClickListener(onItemClickListener);
 		mBtnPrev.setOnClickListener(onClickListener);
@@ -156,11 +167,16 @@ public class FileBrowserFragment extends Fragment {
 		Log.v(LOG_TAG, "path : " + fileInfo.path);
 		Log.i(LOG_TAG, "--------------------------------------------------");
 
-		stopMusic();
+		mIsPlaying = false;
+		mProgressBar.setProgress(0);
+		if (mPlayer != null) {
+			mPlayer.release();
+			mPlayer = null;
+		}
 		mPlayer = new MediaPlayer();
 		mPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mPlayer.setOnCompletionListener(onCompletionListener);
-		mProgressBar.setProgress(0);
+		mTextTitle.setText(fileInfo.title);
 
 		FileInfoModel cachedFile = hasCachedFile(fileInfo.id);
 		if (cachedFile != null) {
@@ -187,28 +203,16 @@ public class FileBrowserFragment extends Fragment {
 
 	private void playMusic(String filePath) {
 		try {
+			SimpleDateFormat sdf = new SimpleDateFormat("mm:ss");
 			mPlayer.setDataSource(filePath);
 			mPlayer.prepare();
 			mPlayer.start();
 			mDuration = mPlayer.getDuration();
 			mUpdateTime = mDuration / 100;
+
+			mProgressBar.setMax(mPlayer.getDuration());
+			mTextDuration.setText(sdf.format(mPlayer.getDuration()));
 			mBtnPlay.performClick();
-
-			mHandler.postDelayed(new Runnable() {
-
-				@Override
-				public void run() {
-					// TODO Auto-generated method stub
-					int currentProgress = mProgressBar.getProgress();
-					if (!(currentProgress * mUpdateTime >= mDuration)) {
-						currentProgress++;
-						mProgressBar.setProgress(currentProgress);
-					}
-					if (mIsPlaying) {
-						mHandler.postDelayed(this, mUpdateTime);
-					}
-				}
-			}, mUpdateTime);
 
 			Log.v(LOG_TAG, "mDuration : " + mDuration);
 			Log.v(LOG_TAG, "mUpdateTime : " + mUpdateTime);
@@ -225,16 +229,6 @@ public class FileBrowserFragment extends Fragment {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
-	}
-
-	private void stopMusic() {
-		Log.i(LOG_TAG, "stopMusic");
-		mIsPlaying = false;
-		if (mPlayer != null) {
-			mPlayer.stop();
-			mPlayer.release();
-			mPlayer = null;
 		}
 	}
 
@@ -280,6 +274,7 @@ public class FileBrowserFragment extends Fragment {
 				initMusic(mFileInfoList.get(mCurrPlayIndex));
 				break;
 			case R.id.f_browser_btn_play:
+				final SimpleDateFormat sdf = new SimpleDateFormat("mm:ss");
 				if (mIsPlaying) {
 					mIsPlaying = false;
 					mBtnPlay.setText("Play");
@@ -288,6 +283,19 @@ public class FileBrowserFragment extends Fragment {
 					mIsPlaying = true;
 					mBtnPlay.setText("Pause");
 					mPlayer.start();
+					mHandler.postDelayed(new Runnable() {
+
+						@Override
+						public void run() {
+							// TODO Auto-generated method stub
+
+							if (mIsPlaying) {
+								mProgressBar.setProgress(mPlayer.getCurrentPosition());
+								mTextCurrTime.setText(sdf.format(mPlayer.getCurrentPosition()));
+								mHandler.postDelayed(this, 1000);
+							}
+						}
+					}, 1000);
 				}
 				break;
 			case R.id.f_browser_btn_next:
@@ -305,8 +313,11 @@ public class FileBrowserFragment extends Fragment {
 		@Override
 		public void onCompletion(MediaPlayer mp) {
 			// TODO Auto-generated method stub
+			Log.i(LOG_TAG, "onCompletion");
 			mp.release();
-			mPlayer = null;
+			if (mCurrPlayIndex != (mFileInfoList.size() - 1)) {
+				mBtnNext.performClick();
+			}
 		}
 	};
 }
