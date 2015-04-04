@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import org.larry.xz_musicplayer.R.id;
 import org.larry.xz_musicplayer.model.AccountModel;
 
-import com.google.ads.mediation.customevent.CustomEvent;
-
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;

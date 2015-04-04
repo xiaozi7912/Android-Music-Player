@@ -1,42 +1,28 @@
 package org.larry.xz_musicplayer.fragment;
 
-import java.io.IOException;
 import java.util.ArrayList;
 
 import org.larry.xz_musicplayer.R;
 import org.larry.xz_musicplayer.adapter.AccountAdapter;
+import org.larry.xz_musicplayer.adapter.PickAccountAdapter;
 import org.larry.xz_musicplayer.model.AccountModel;
+import org.larry.xz_musicplayer.utility.GetAccesstokenTask;
+import org.larry.xz_musicplayer.utility.MyEventListener;
 import org.larry.xz_musicplayer.utility.SQLManager;
 
-import com.google.android.gms.auth.GoogleAuthException;
-import com.google.android.gms.auth.GoogleAuthUtil;
 import com.google.android.gms.auth.GooglePlayServicesAvailabilityException;
 import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.common.AccountPicker;
-import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
-import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
-import com.google.android.gms.drive.Drive;
-import com.google.android.gms.plus.Plus;
-import com.google.android.gms.plus.People.LoadPeopleResult;
-import com.google.android.gms.plus.model.people.Person;
 
-import android.R.integer;
-import android.R.plurals;
+import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.ContentValues;
 import android.content.Intent;
-import android.content.IntentSender.SendIntentException;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.provider.Contacts.People;
-import android.provider.ContactsContract.Profile;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -45,31 +31,35 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.Toast;
 
-public class AccountFragment extends Fragment implements ConnectionCallbacks, OnConnectionFailedListener {
+public class AccountFragment extends Fragment {
 	private static final String LOG_TAG = "AccountFragment";
 	private static final int REQUEST_CODE_PICK_ACCOUNT = 1000;
 	private static final int REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR = REQUEST_CODE_PICK_ACCOUNT + 1;
 	private static final int REQUEST_CODE_RECOVER_FROM_AUTH_ERROR = REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR + 1;
-	private static final int REQUEST_CODE_AUTH_ERROR = REQUEST_CODE_RECOVER_FROM_AUTH_ERROR + 1;
 
 	private Activity mActivity = null;
 	private Handler mHandler = new Handler();
 	private String mAccount = null;
-	private String mScopes = "oauth2:https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive";
 	private SQLManager mSqlManager = null;
-	private GoogleApiClient mClientApi = null;
+	private MyEventListener mEventListener = null;
 
 	private Button mBtnAdd = null;
 	private ListView mListView = null;
+	private AlertDialog mAlertDialog = null;
 
 	private ArrayList<AccountModel> mAccountList = null;
 
-	public static AccountFragment newInstance() {
-		return new AccountFragment();
+	public AccountFragment(MyEventListener eventListener) {
+		// TODO Auto-generated constructor stub
+		mEventListener = eventListener;
+	}
+
+	public static AccountFragment newInstance(MyEventListener eventListener) {
+		return new AccountFragment(eventListener);
 	}
 
 	@Override
@@ -103,9 +93,7 @@ public class AccountFragment extends Fragment implements ConnectionCallbacks, On
 	public void onStop() {
 		// TODO Auto-generated method stub
 		super.onStop();
-		if (mClientApi != null) {
-			mClientApi.disconnect();
-		}
+
 	}
 
 	@Override
@@ -115,64 +103,22 @@ public class AccountFragment extends Fragment implements ConnectionCallbacks, On
 		Log.i(LOG_TAG, "onActivityResult");
 		if (requestCode == REQUEST_CODE_PICK_ACCOUNT) {
 			Log.i(LOG_TAG, "REQUEST_CODE_PICK_ACCOUNT");
-			if (resultCode == mActivity.RESULT_OK) {
+			if (resultCode == Activity.RESULT_OK) {
 				Log.i(LOG_TAG, "REQUEST_CODE_PICK_ACCOUNT RESULT_OK");
 				mAccount = data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
 				getAccesstoken();
-			} else if (resultCode == mActivity.RESULT_CANCELED) {
+			} else if (resultCode == Activity.RESULT_CANCELED) {
 				Log.i(LOG_TAG, "REQUEST_CODE_PICK_ACCOUNT RESULT_CANCELED");
 			}
-		}
-		if (requestCode == REQUEST_CODE_AUTH_ERROR) {
-			Log.i(LOG_TAG, "REQUEST_CODE_AUTH_ERROR");
-			if (resultCode == mActivity.RESULT_OK) {
-				Log.i(LOG_TAG, "REQUEST_CODE_AUTH_ERROR RESULT_OK");
-				getAccesstoken();
-			} else if (resultCode == mActivity.RESULT_CANCELED) {
-				Log.i(LOG_TAG, "REQUEST_CODE_AUTH_ERROR RESULT_CANCELED");
-			} else {
-				Log.i(LOG_TAG, "REQUEST_CODE_AUTH_ERROR ????");
-			}
+		} else if ((requestCode == REQUEST_CODE_RECOVER_FROM_AUTH_ERROR || requestCode == REQUEST_CODE_RECOVER_FROM_PLAY_SERVICES_ERROR)
+				&& resultCode == Activity.RESULT_OK) {
+			// Receiving a result that follows a GoogleAuthException, try auth
+			// again
+			getAccesstoken();
 		}
 	}
 
-	@Override
-	public void onConnectionFailed(ConnectionResult result) {
-		// TODO Auto-generated method stub
-		Log.i(LOG_TAG, "onConnectionFailed");
-		if (result.hasResolution()) {
-			Log.i(LOG_TAG, "hasResolution");
-			try {
-				result.startResolutionForResult(mActivity, REQUEST_CODE_AUTH_ERROR);
-			} catch (SendIntentException e) {
-				Log.e(LOG_TAG, e.getMessage());
-				mClientApi.connect();
-			}
-		}
-	}
-
-	@Override
-	public void onConnected(Bundle connectionHint) {
-		// TODO Auto-generated method stub
-		Log.i(LOG_TAG, "onConnected");
-		Toast.makeText(mActivity, "User is connected!", Toast.LENGTH_LONG).show();
-		getUserProfile();
-	}
-
-	@Override
-	public void onConnectionSuspended(int cause) {
-		// TODO Auto-generated method stub
-		Log.i(LOG_TAG, "onConnectionSuspended");
-		mClientApi.connect();
-	}
-
-	private void updateListView() {
-		mAccountList = mSqlManager.Account().list();
-		AccountAdapter adapter = new AccountAdapter(mActivity, mAccountList);
-		mListView.setAdapter(adapter);
-	}
-
-	private void handleException(final Exception e) {
+	public void handleException(final Exception e) {
 		mHandler.post(new Runnable() {
 
 			@Override
@@ -190,7 +136,14 @@ public class AccountFragment extends Fragment implements ConnectionCallbacks, On
 		});
 	}
 
+	public void updateListView() {
+		mAccountList = mSqlManager.Account().list();
+		AccountAdapter adapter = new AccountAdapter(mActivity, mAccountList);
+		mListView.setAdapter(adapter);
+	}
+
 	private void pickUserAccount() {
+		Log.i(LOG_TAG, "pickUserAccount");
 		String[] accountTypes = new String[] { "com.google" };
 		Intent intent = AccountPicker.newChooseAccountIntent(null, null, accountTypes, false, null, null, null, null);
 		startActivityForResult(intent, REQUEST_CODE_PICK_ACCOUNT);
@@ -198,39 +151,12 @@ public class AccountFragment extends Fragment implements ConnectionCallbacks, On
 
 	private void getAccesstoken() {
 		Log.i(LOG_TAG, "getAccesstoken");
-		if (mAccount == null) {
-			pickUserAccount();
-		} else {
-			// new GetAccesstokenTask().execute();
-
-			mClientApi = new GoogleApiClient.Builder(mActivity).addApi(Plus.API, Plus.PlusOptions.builder().build())
-					.addScope(Plus.SCOPE_PLUS_PROFILE).addApi(Drive.API).addScope(Drive.SCOPE_FILE).setAccountName(mAccount)
-					.addConnectionCallbacks(this).addOnConnectionFailedListener(this).build();
-			mClientApi.connect();
-		}
+		new GetAccesstokenTask(mActivity, this, mAccount).execute();
 	}
 
 	private void getUserProfile() {
 		Log.i(LOG_TAG, "getUserProfile");
 
-		Log.v(LOG_TAG, "isConnected : " + mClientApi.isConnected());
-		Log.v(LOG_TAG, "getAccountName : " + Plus.AccountApi.getAccountName(mClientApi));
-		if (Plus.PeopleApi.getCurrentPerson(mClientApi) != null) {
-			Person currentPerson = Plus.PeopleApi.getCurrentPerson(mClientApi);
-
-			AccountModel existsAccount = mSqlManager.Account().get(mAccount);
-			ContentValues values = new ContentValues();
-			values.put(SQLManager.ACCOUNT_EMAIL, mAccount);
-			values.put(SQLManager.ACCOUNT_PICTURE, currentPerson.getImage().getUrl());
-
-			if (existsAccount != null) {
-				mSqlManager.Account().update(existsAccount.id, values);
-			} else {
-				mSqlManager.Account().insert(values);
-			}
-		} else {
-			Log.e(LOG_TAG, "getCurrentPerson fail");
-		}
 	}
 
 	private OnClickListener onClickListener = new OnClickListener() {
@@ -247,9 +173,10 @@ public class AccountFragment extends Fragment implements ConnectionCallbacks, On
 		@Override
 		public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 			// TODO Auto-generated method stub
-			AccountModel selected = mAccountList.get(position);
-			mAccount = selected.email;
+			AccountModel selectedItem = mAccountList.get(position);
+			mAccount = selectedItem.email;
 			getAccesstoken();
+			mEventListener.onAccountSelected(selectedItem);
 		}
 	};
 }

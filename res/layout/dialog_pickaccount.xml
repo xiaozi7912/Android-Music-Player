@@ -4,16 +4,17 @@
     android:layout_height="match_parent"
     android:orientation="vertical" >
 
-    <Button
-        android:id="@+id/f_account_btnAdd"
+    <ListView
+        android:id="@+id/dialog_pickaccount_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Google Account" />
-
-    <ListView
-        android:id="@+id/f_account_list"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" >
+        android:layout_weight="1" >
     </ListView>
+
+    <Button
+        android:id="@+id/dialog_pickaccount_new"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="新增帳號" />
 
 </LinearLayout>
