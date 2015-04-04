@@ -7,13 +7,16 @@ import org.larry.xz_musicplayer.fragment.AccountFragment;
 import org.larry.xz_musicplayer.fragment.FileBrowserFragment;
 import org.larry.xz_musicplayer.fragment.PlayListFragment;
 import org.larry.xz_musicplayer.model.AccountModel;
+import org.larry.xz_musicplayer.utility.GetAccesstokenTask;
 import org.larry.xz_musicplayer.utility.MyEventListener;
+import org.larry.xz_musicplayer.utility.SQLManager;
 
 import com.astuetz.PagerSlidingTabStrip;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.ViewPager;
@@ -24,19 +27,25 @@ import android.view.MenuItem;
 
 public class MainActivity extends FragmentActivity implements MyEventListener {
 	private static final String LOG_TAG = "MainActivity";
-
+	private Activity mActivity = this;
 	private PagerSlidingTabStrip mTabStrip = null;
 	private ViewPager mViewPager = null;
 	private MyPagerAdapter mAdapter = null;
+	private Handler mHandler = new Handler();
+	private SQLManager mSqlManager = null;
 
 	private AccountFragment mFAccount = AccountFragment.newInstance(this);
 	private FileBrowserFragment mFBrowser = FileBrowserFragment.newInstance(this);
 	private PlayListFragment mFPlayList = PlayListFragment.newInstance(this);
 
+	private int mUpdateTokenTime = 1000 * 60 * 30;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		mSqlManager = new SQLManager(mActivity);
+		startUpdateTokenTask();
 		initView();
 	}
 
@@ -68,6 +77,21 @@ public class MainActivity extends FragmentActivity implements MyEventListener {
 	public void onRootFolderPressedBack() {
 		// TODO Auto-generated method stub
 		mViewPager.setCurrentItem(0);
+	}
+
+	private void startUpdateTokenTask() {
+		mHandler.post(new Runnable() {
+
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				ArrayList<AccountModel> accountList = mSqlManager.Account().list();
+				for (AccountModel account : accountList) {
+					new GetAccesstokenTask(mActivity, mFAccount, account.email).execute();
+				}
+				mHandler.postDelayed(this, mUpdateTokenTime);
+			}
+		});
 	}
 
 	private void initView() {
